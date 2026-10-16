@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MockMate AI — Interview Practice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+<!-- pdf.js: lets the browser read text out of an uploaded PDF, entirely client-side.
+     No backend involved — the resume text still goes to our server the same way
+     it would if the user had pasted it by hand. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+
+  <!-- Dev-only testing aid. Hidden unless ?devmode=true AND running on
+       localhost — never active for a real user, never ships "on" by default. -->
+  <div id="dev-panel" class="dev-panel" hidden>
+    🧪 DEV MODE —
+    <button id="dev-run-all-btn" type="button" class="link-btn">Auto-run entire interview (real API calls)</button>
+  </div>
+
+  <header class="app-header">
+    <span class="logo-mark">◆</span>
+    <span class="logo-text">MockMate AI</span>
+  </header>
+
+  <main class="wrap">
+
+    <!-- SETUP SCREEN -->
+    <section id="setup-screen" class="card">
+      <div class="card-top-row">
+        <span class="badge">✨ AI-powered mock interview</span>
+        <div class="mic-visual" aria-hidden="true">
+          <div class="mic-core">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M19 11a7 7 0 01-14 0M12 18v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+      <p class="eyebrow">Mock interview practice</p>
+      <h1>Let's get you ready.</h1>
+      <p class="sub">Tell us the role you're preparing for and paste your resume. We'll build 30 questions around both.</p>
+      <button id="view-history-btn" type="button" class="link-btn history-link">📜 View past interviews</button>
+
+      <div class="distribution-row">
+        <span class="chip">5 Personal</span>
+        <span class="chip">8 Resume-based</span>
+        <span class="chip">10 Fundamentals</span>
+        <span class="chip">7 Problem-Solving</span>
+      </div>
+
+      <div class="setup-grid">
+        <div class="setup-col">
+          <label class="field-label" for="role-input">Job role</label>
+          <div class="input-icon-wrap">
+            <svg class="input-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 6V4.5C6 3.67 6.67 3 7.5 3h5c.83 0 1.5.67 1.5 1.5V6M4 7h12a1 1 0 011 1v7a1 1 0 01-1 1H4a1 1 0 01-1-1V8a1 1 0 011-1z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <input
+              id="role-input"
+              type="text"
+              placeholder="e.g. Frontend Developer, Data Analyst, HR Executive"
+              maxlength="100"
+            />
+          </div>
+
+          <div class="col-spacer"></div>
+
+          <button id="generate-btn" type="button">
+            <span class="btn-label">Generate questions</span>
+          </button>
+
+          <div class="setup-features">
+            <div>✓ Resume-tailored questions</div>
+            <div>✓ Voice &amp; text responses</div>
+            <div>✓ Instant AI evaluation</div>
+          </div>
+
+          <p id="setup-error" class="error-text" hidden></p>
+        </div>
+
+        <div class="setup-col">
+          <label class="field-label" for="resume-input">Resume text</label>
+
+          <div id="dropzone" class="dropzone">
+            <label for="resume-pdf-input" class="dropzone-inner">
+              <svg class="dropzone-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 15V4M12 4L8 8M12 4l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span class="dropzone-text"><strong>Upload PDF</strong> or drag &amp; drop it here</span>
+              <input id="resume-pdf-input" type="file" accept="application/pdf" hidden />
+            </label>
+          </div>
+          <span id="upload-status" class="upload-status"></span>
+
+          <textarea
+            id="resume-input"
+            placeholder="...or paste your resume text here — projects, internships, skills, achievements..."
+            rows="5"
+            maxlength="6000"
+          ></textarea>
+          <p class="char-count"><span id="char-count">0</span> / 6000</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOADING STATE -->
+    <section id="loading-screen" class="card" hidden>
+      <p class="eyebrow">Working on it</p>
+      <h1>Building your question set…</h1>
+      <p class="sub">This usually takes a few seconds.</p>
+      <div id="typing-dots" class="typing-dots">
+        <span></span><span></span><span></span>
+      </div>
+      <div id="success-check" class="success-check" hidden>
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="16" cy="16" r="12"/>
+          <path d="M10.5 16.5l3.5 3.5 7-7"/>
+        </svg>
+      </div>
+    </section>
+
+    <!-- INTERVIEW SCREEN — one question at a time -->
+    <section id="interview-screen" class="card" hidden>
+      <div class="interview-top-row">
+        <div>
+          <p class="category-label" id="category-label">Personal</p>
+          <p class="progress-label" id="progress-label">Question 1 of 30</p>
+        </div>
+        <div class="top-row-actions">
+          <button id="end-early-btn" type="button" class="link-btn">End &amp; see report</button>
+          <button id="exit-interview-btn" type="button" class="link-btn">Exit</button>
+        </div>
+      </div>
+
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+
+      <div class="question-row">
+        <h1 id="question-text" class="question-text">—</h1>
+        <button id="replay-btn" type="button" class="replay-btn" title="Replay question" aria-label="Replay question">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 9v6h4l5 5V4L8 9H4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <textarea
+        id="answer-input"
+        class="answer-input"
+        placeholder="Type your answer here, or use the mic below…"
+        rows="6"
+        maxlength="4000"
+      ></textarea>
+
+      <div class="answer-controls">
+        <button id="mic-btn" type="button" class="mic-btn" aria-label="Record answer" title="Record answer">
+          <svg class="mic-icon-idle" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M19 11a7 7 0 01-14 0M12 18v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg class="mic-icon-recording" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/>
+          </svg>
+        </button>
+        <span id="recording-indicator" class="recording-indicator" hidden>
+          <span class="rec-dot"></span> Listening…
+        </span>
+        <p id="voice-unsupported-note" class="answer-note" hidden>
+          🎤 Voice input isn't supported in this browser (try Chrome or Edge) — typing works fine here.
+        </p>
+      </div>
+
+      <p id="interview-error" class="error-text" hidden></p>
+
+      <div id="feedback-card" class="feedback-card" hidden>
+        <div class="feedback-header">
+          <div id="feedback-score" class="feedback-score">–</div>
+          <div>
+            <p class="feedback-score-label">AI score</p>
+            <p id="feedback-skipped-note" class="feedback-skipped-note" hidden>
+              AI feedback was skipped for this answer.
+            </p>
+          </div>
+        </div>
+
+        <div id="feedback-details">
+          <p class="feedback-line"><span class="feedback-tag good">Strengths</span><span id="feedback-strengths"></span></p>
+          <p class="feedback-line"><span class="feedback-tag weak">Could improve</span><span id="feedback-weaknesses"></span></p>
+          <p class="feedback-line"><span class="feedback-tag tip">Tip</span><span id="feedback-improvement"></span></p>
+
+          <p class="feedback-ideal-label">A strong answer would cover:</p>
+          <ul id="feedback-ideal-list" class="feedback-ideal-list"></ul>
+        </div>
+
+        <div id="feedback-metrics-row" class="feedback-metrics-row"></div>
+      </div>
+
+      <div id="evaluating-indicator" class="typing-dots" hidden>
+        <span></span><span></span><span></span>
+      </div>
+
+      <div id="eval-error-actions" class="eval-error-actions" hidden>
+        <button id="retry-eval-btn" type="button" class="secondary nav-btn">Retry evaluation</button>
+        <button id="skip-eval-btn" type="button" class="link-btn">Continue without AI feedback</button>
+      </div>
+
+      <div id="interview-nav-row" class="interview-nav-row">
+        <button id="prev-btn" type="button" class="secondary nav-btn">← Previous</button>
+        <button id="next-btn" type="button" class="nav-btn">Submit &amp; Next</button>
+      </div>
+    </section>
+
+    <!-- HISTORY SCREEN -->
+    <section id="history-screen" class="card" hidden>
+      <div class="interview-top-row">
+        <div>
+          <p class="eyebrow">Your past sessions</p>
+          <h1>Interview history</h1>
+        </div>
+        <button id="history-back-btn" type="button" class="link-btn">← Back</button>
+      </div>
+      <p class="sub">Stored only in this browser — nothing is sent anywhere, and nothing here affects a new session.</p>
+
+      <div id="history-list" class="history-list"></div>
+      <p id="history-empty-note" class="sub" hidden>No interviews yet — answer at least one question and the session will show up here.</p>
+    </section>
+
+    <!-- CATEGORY DETAIL SCREEN (opened by clicking a category in the report) -->
+    <section id="category-detail-screen" class="card" hidden>
+      <div class="interview-top-row">
+        <div>
+          <p class="eyebrow" id="detail-eyebrow">Category</p>
+          <h1 id="detail-heading">Questions &amp; answers</h1>
+        </div>
+        <button id="detail-back-btn" type="button" class="link-btn">← Back to report</button>
+      </div>
+      <p class="sub" id="detail-sub"></p>
+      <div id="detail-list" class="detail-list"></div>
+    </section>
+
+    <!-- COMPLETION SCREEN -->
+    <section id="completion-screen" class="card" hidden>
+      <div class="completion-icon">✓</div>
+      <h1 id="completion-heading">Interview complete.</h1>
+      <p class="sub" id="completion-sub">Here's how you did, based on your answers and the feedback collected along the way.</p>
+
+      <div class="feedback-header">
+        <div id="report-overall-score" class="feedback-score">–</div>
+        <div>
+          <p class="feedback-score-label">Overall AI score</p>
+          <p id="report-score-note" class="feedback-skipped-note" hidden></p>
+        </div>
+      </div>
+
+      <p class="report-hint">Tap a category to see every question and your answers.</p>
+      <div id="report-categories" class="report-categories"></div>
+
+      <div id="report-metrics-row" class="feedback-metrics-row"></div>
+
+      <p id="report-fillers-note" class="report-fillers-note" hidden></p>
+
+      <div class="completion-actions">
+        <button id="restart-btn" type="button">Start a new session</button>
+        <button id="back-to-history-btn" type="button" class="secondary nav-btn" hidden>← Back to history</button>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="metrics.js"></script>
+  <script src="storage.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
